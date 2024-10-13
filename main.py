@@ -15,7 +15,7 @@ paused = False  # Keeps track of whether the reading is paused
 tts_thread = None  # Thread for the TTS process
 
 def read_aloud():
-    """Read the text aloud from the selected position."""
+    """Read the text aloud from the selected position, including punctuation."""
     global selected_char_index, paused
 
     speed = speed_scale.get()
@@ -24,7 +24,12 @@ def read_aloud():
     engine.setProperty('rate', speed)
 
     # Get the text starting from the selected character index
-    words = text[selected_char_index:].split()
+    text_to_read = text[selected_char_index:]
+    
+    # Replace punctuation marks with words
+    text_to_read = replace_punctuation(text_to_read)
+
+    words = text_to_read.split()
 
     current_word_index = 0
     while current_word_index < len(words):
@@ -38,6 +43,26 @@ def read_aloud():
         time.sleep(pause_duration)
 
     enable_controls()  # Enable controls when reading is done
+
+def replace_punctuation(text):
+    """Replace punctuation with words to make the TTS engine read them."""
+    replacements = {
+        ".": " full stop",
+        ",": " comma",
+        "!": " exclamation mark",
+        "?": " question mark",
+        ":": " colon",
+        ";": " semicolon",
+        "(": " open parenthesis",
+        ")": " close parenthesis",
+        "'": " apostrophe"
+    }
+    
+    for punct, word in replacements.items():
+        text = text.replace(punct, word)
+    
+    return text
+
 
 def start_reading_thread():
     """Start reading aloud in a separate thread."""
