@@ -9,22 +9,24 @@ from utils.pdf_reader import extract_text_from_pdf
 engine = pyttsx3.init()
 
 # Global variables
-text = ""
-current_word_index = 0  # Keeps track of the current position in the text
+text = ""  # Stores full PDF text
+selected_char_index = 0  # Keeps track of the selected character index to start reading
 paused = False  # Keeps track of whether the reading is paused
 tts_thread = None  # Thread for the TTS process
 
 def read_aloud():
-    """Read the text aloud with current settings in a separate thread."""
-    global current_word_index, paused
+    """Read the text aloud from the selected position."""
+    global selected_char_index, paused
 
     speed = speed_scale.get()
     words_per_pause = words_per_pause_scale.get()
     pause_duration = pause_duration_scale.get() / 1000  # Convert milliseconds to seconds
     engine.setProperty('rate', speed)
 
-    words = text.split()
+    # Get the text starting from the selected character index
+    words = text[selected_char_index:].split()
 
+    current_word_index = 0
     while current_word_index < len(words):
         if paused:  # Check if we should pause
             break
@@ -39,10 +41,9 @@ def read_aloud():
 
 def start_reading_thread():
     """Start reading aloud in a separate thread."""
-    global tts_thread, current_word_index, paused
+    global tts_thread, paused
 
     if text:
-        current_word_index = 0  # Reset to the beginning of the text
         paused = False
         disable_controls()  # Disable controls while reading
 
@@ -78,6 +79,21 @@ def upload_pdf():
     if file_path:
         text = extract_text_from_pdf(file_path)
         file_label.config(text=f"Loaded: {file_path.split('/')[-1]}")
+        text_area.delete(1.0, tk.END)  # Clear existing text in the widget
+        text_area.insert(tk.END, text)  # Insert the full PDF text
+
+def select_text():
+    """Select the starting point for reading based on the cursor position in the text widget."""
+    global selected_char_index
+    try:
+        # Get the starting position (index) in the form of "line.column"
+        start_pos = text_area.index(tk.SEL_FIRST)
+
+        # Convert the "line.column" to an absolute character index
+        selected_char_index = text_area.count("1.0", start_pos)[0]  # Count chars from the start to the selection
+        messagebox.showinfo("Text Selection", f"Starting from character index {selected_char_index}")
+    except tk.TclError:
+        messagebox.showwarning("Selection Error", "Please select the starting point.")
 
 def disable_controls():
     """Disable buttons during TTS process."""
@@ -94,7 +110,7 @@ def enable_controls():
 # Setup GUI
 root = tk.Tk()
 root.title("PDF to Speech App")
-root.geometry("400x400")
+root.geometry("600x600")
 
 # File upload section
 file_frame = tk.Frame(root)
@@ -103,6 +119,16 @@ file_label = tk.Label(file_frame, text="No PDF selected")
 file_label.pack()
 upload_button = tk.Button(file_frame, text="Upload PDF", command=upload_pdf)
 upload_button.pack()
+
+# PDF content display (Text Area)
+text_frame = tk.Frame(root)
+text_frame.pack(pady=10)
+text_area = tk.Text(text_frame, wrap='word', height=10, width=50)
+text_area.pack()
+
+# Select starting point button
+select_button = tk.Button(root, text="Select Starting Point", command=select_text)
+select_button.pack(pady=10)
 
 # Speed control
 speed_frame = tk.Frame(root)
@@ -127,7 +153,7 @@ pause_duration_frame = tk.Frame(root)
 pause_duration_frame.pack(pady=10)
 pause_duration_label = tk.Label(pause_duration_frame, text="Pause Duration (milliseconds):")
 pause_duration_label.pack()
-pause_duration_scale = tk.Scale(pause_duration_frame, from_=100, to_=2000, orient="horizontal")
+pause_duration_scale = tk.Scale(pause_duration_frame, from_=100, to_=10000, orient="horizontal")
 pause_duration_scale.set(500)
 pause_duration_scale.pack()
 
